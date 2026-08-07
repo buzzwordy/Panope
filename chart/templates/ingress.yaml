@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled }}
+{{- if and (ne .Values.auth.mode "oidc") (not .Values.ingress.allowAnonymous) }}
+{{- fail "Refusing to render: ingress.enabled with auth.mode != oidc publishes an UNAUTHENTICATED cluster console (read-only still exposes every non-secret resource, and pod logs). Set auth.mode=oidc, or ingress.allowAnonymous=true to accept the risk." }}
+{{- end }}
+{{- if and (ne .Values.auth.mode "oidc") (not .Values.panope.readOnly) }}
+{{- fail "Refusing to render: unauthenticated AND read-write is an anonymous cluster-admin console. Set auth.mode=oidc or keep panope.readOnly=true." }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "panope.fullname" . }}
+  labels: {{- include "panope.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "panope.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

@@ -1,0 +1,54 @@
+appId: com.panope.app
+productName: Panope
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+  # AGPL-3.0 and the MIT/ISC icon notices must travel with every binary.
+  - LICENSE
+  - THIRD-PARTY-NOTICES.md
+extraResources:
+  # available at process.resourcesPath for the running window icon
+  - from: build/icon.png
+    to: icon.png
+linux:
+  target:
+    - AppImage
+    - deb
+    - rpm
+  icon: build/icon.png
+  category: Development
+  maintainer: buzzwordy <buzzwordy@users.noreply.github.com>
+  synopsis: Desktop client for Kubernetes
+  description: Panope - an Electron desktop client for Kubernetes (resources, logs, exec, port-forward, CRDs, ArgoCD).
+appImage:
+  artifactName: ${productName}-${version}.${ext}
+deb:
+  # runtime libs Electron needs on Debian/Ubuntu
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libsecret-1-0
+# macOS packaging is TBD - not built in CI. This config is enough for a local
+# `electron-builder --mac` on a Mac, but the result is unsigned and untested.
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+win:
+  target:
+    - nsis
+    - zip
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-Setup-${version}.${ext}
