@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 200" width="660" height="200" role="img" aria-label="Panope">
+  <title>Panope</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3037"/>
+      <stop offset="1" stop-color="#14161a"/>
+    </linearGradient>
+    <linearGradient id="mesh" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#5ce894"/>
+      <stop offset="1" stop-color="#1eb257"/>
+    </linearGradient>
+  </defs>
+  <style>
+    /* The wordmark is drawn as outlines, so it needs no font installed. Only
+       its colour adapts: dark slate reads on light backgrounds, near-white on
+       dark ones (GitHub renders this per the viewer's theme). */
+    .word { stroke: #1b2028; }
+    @media (prefers-color-scheme: dark) { .word { stroke: #f2f5f8; } }
+  </style>
+
+  <!-- mark: 7 nodes on a ring around a hub, matching the app icon -->
+  <g transform="translate(16 20) scale(0.625)">
+    <rect width="256" height="256" rx="58" fill="url(#tile)"/>
+    <g fill="none" stroke="url(#mesh)" stroke-width="9" stroke-linecap="round">
+      <circle cx="128" cy="128" r="88"/>
+      <path d="M128 128 128 40M128 128 59.2 73.13M128 128 42.21 147.58M128 128 89.82 207.29M128 128 166.18 207.29M128 128 213.79 147.58M128 128 196.8 73.13"/>
+    </g>
+    <g fill="url(#mesh)">
+      <circle cx="128" cy="40" r="15"/>
+      <circle cx="59.2" cy="73.13" r="15"/>
+      <circle cx="42.21" cy="147.58" r="15"/>
+      <circle cx="89.82" cy="207.29" r="15"/>
+      <circle cx="166.18" cy="207.29" r="15"/>
+      <circle cx="213.79" cy="147.58" r="15"/>
+      <circle cx="196.8" cy="73.13" r="15"/>
+      <circle cx="128" cy="128" r="30"/>
+    </g>
+  </g>
+
+  <!-- wordmark: geometric sans drawn as strokes, cap height 100 -->
+  <g class="word" transform="translate(212 59) scale(0.82)">
+    <g fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+      <!-- P -->
+      <path d="M7 0V100M7 7h29a21.5 21.5 0 0 1 0 43H7"/>
+      <!-- a -->
+      <circle cx="118" cy="64" r="29"/>
+      <path d="M147 28v72"/>
+      <!-- n -->
+      <path d="M178 100V28M178 57a29 29 0 0 1 58 0v43"/>
+      <!-- o -->
+      <circle cx="289" cy="64" r="29"/>
+      <!-- p -->
+      <path d="M349 28v100"/>
+      <circle cx="378" cy="64" r="29"/>
+      <!-- e -->
+      <path d="M438 64h58M496 64a29 29 0 1 0-9 22"/>
+    </g>
+  </g>
+</svg>

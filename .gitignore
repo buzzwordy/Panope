@@ -1,0 +1,32 @@
+node_modules
+out
+dist
+dist-electron
+*.log
+npm-install.log
+.DS_Store
+.vite
+*.tsbuildinfo
+.dockerhome
+
+# Editor and local tooling state - never part of the project.
+.idea/
+.fleet/
+.claude/
+.cursor/
+.aider*
+*.local.json
+# Local assistant/agent notes: untracked, and ignored so a blanket `git add -A`
+# cannot sweep them into a public commit.
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.github/copilot-instructions.md
+
+# Local env overrides; secrets must never be committed.
+.env
+.env.*
+!.env.example
+
+# Repo backups (e.g. git bundles) if anyone parks one here.
+*.bundle
