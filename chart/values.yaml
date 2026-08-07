@@ -1,0 +1,194 @@
+image:
+  # Published by the release workflow on every v* tag. The GHCR package's
+  # visibility is separate from the repository's: it inherits it at first push
+  # and does NOT follow later changes, so if the repo becomes public the
+  # package must be made public too, or pulls need an imagePullSecret.
+  repository: ghcr.io/buzzwordy/panope
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# Needed only while the GHCR package is private, e.g.
+#   [{ name: ghcr }]
+imagePullSecrets: []
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+# ---------------------------------------------------------------------------
+# SAFETY
+# ---------------------------------------------------------------------------
+# Defaults are deliberately the safe end of every trade-off. Read them before
+# exposing this on an Ingress.
+panope:
+  # Blocks every mutating call in the server, whatever RBAC would allow.
+  readOnly: true
+  # Node shells and ephemeral debug containers. Creating privileged pods from a
+  # shared web app is a large blast radius - off unless you mean it.
+  allowPrivileged: false
+
+  alerts:
+    enabled: false
+    intervalSeconds: 60
+    cooldownMinutes: 30
+    # Where to send built-in alerts (leave blank to only log them)
+    slackWebhookUrl: ""
+    webhookUrl: ""
+    # Surface alerts an existing Alertmanager is already firing
+    # One or many Alertmanagers to aggregate. Each alert is tagged with its
+    # source host so identical alertnames don't collide.
+    alertmanagerUrls: []   # e.g. [http://alertmanager.monitoring.svc:9093, http://am-prod.mon.svc:9093]
+    thresholds:
+      cpuPercent: 90
+      memoryPercent: 90
+      podSlotPercent: 90
+      restarts: 10
+
+# ---------------------------------------------------------------------------
+# AUTH
+# ---------------------------------------------------------------------------
+# With auth.mode=oidc the server forwards the logged-in user's identity to the
+# Kubernetes API (impersonation), so each person gets THEIR OWN RBAC and the
+# ServiceAccount needs almost nothing. This is the only mode that is safe to
+# expose publicly.
+#
+# auth.mode=none means every visitor acts as `rbac.impersonate.defaultUser`
+# (or the ServiceAccount if impersonation is off). Use it only on a ClusterIP
+# reached through kubectl port-forward or a private network.
+auth:
+  mode: none          # none | oidc
+  oidc:
+    issuer: ""        # e.g. https://keycloak.example.com/realms/platform
+    clientId: ""
+    clientSecret: ""  # prefer existingSecret below
+    existingSecret: ""
+    redirectUri: ""   # https://panope.example.com/auth/callback
+    usernameClaim: preferred_username   # MUST match the API server's --oidc-username-claim
+    groupsClaim: groups
+  # Signs session cookies. Generate with: openssl rand -hex 32
+  sessionSecret: ""
+  existingSessionSecret: ""
+
+rbac:
+  create: true
+  # Grant the ServiceAccount the ability to impersonate users/groups. Required
+  # for auth.mode=oidc; with it the SA itself needs no read access at all.
+  #
+  # SECURITY: pin exactly who may be impersonated. An unrestricted grant plus an
+  # IdP where a user can influence their own username/groups claim is a
+  # cluster-admin escalation (they ask to be `system:masters`). Rendering fails
+  # if you enable impersonation without an allowlist, and refuses any `system:*`
+  # entry. Globs are NOT supported by Kubernetes resourceNames - list exact
+  # names, or set allowAnyUser and accept the risk.
+  impersonate:
+    enabled: false
+    users: []         # e.g. [alice@example.com, bob@example.com]
+    groups: []        # e.g. [team-payments, platform-admins]
+    allowAnyUser: false
+    defaultUser: ""   # used when auth.mode=none, e.g. panope-viewer
+  # When impersonation is off, the SA reads the cluster directly with this role.
+  readOnlyClusterRole: view
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+ingress:
+  enabled: false
+  # Publishing without OIDC exposes cluster data to anyone who reaches the URL.
+  allowAnonymous: false
+  className: ""
+  annotations: {}
+  host: panope.example.com
+  tls:
+    enabled: false
+    secretName: ""
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ---------------------------------------------------------------------------
+# AUTHORIZATION - flexible claim mapping + per-team capabilities
+# ---------------------------------------------------------------------------
+# Two layers, on purpose:
+#
+#  identity: map ANY OIDC claim shape onto a Kubernetes user + groups, which are
+#  then impersonated. Per-namespace / per-resource / per-verb access is therefore
+#  decided by the API server against real RBAC - the hard boundary. Bind Roles to
+#  these groups and you get granular access with no app-side enforcement:
+#
+#    kind: RoleBinding            # team-payments: read-only in one namespace
+#    metadata: { namespace: payments }
+#    roleRef:  { kind: ClusterRole, name: view }
+#    subjects: [{ kind: Group, name: team-payments }]
+#
+#  roles/bindings: app-level capabilities RBAC cannot express - which FEATURES a
+#  team may use in the UI (terminal, apply, node shell...) and which namespaces the
+#  UI shows. This layer only ever SUBTRACTS; it never grants.
+authz:
+  enabled: false
+  identity:
+    usernameClaim: preferred_username   # MUST match the API server's --oidc-username-claim
+    usernamePrefix: ""                  # mirror --oidc-username-prefix if set
+    # Harvest groups from any number of claims, including nested paths.
+    groups:
+      - claim: groups
+      # - { claim: realm_access.roles, prefix: "role:" }     # Keycloak realm roles
+      # - { claim: resource_access.panope.roles, strip: "panope-" }
+    forbidden: []   # extra denylist (globs ok); system:* is always denied
+    allowed: []     # if non-empty, ONLY these may be impersonated (globs ok)
+  roles:
+    viewer:
+      readOnly: true
+      features: [logs, events]
+    developer:
+      readOnly: false
+      features: [logs, events, exec, portForward, apply, scale, helm, argo]
+    admin:
+      readOnly: false
+      features: ["*"]
+      privileged: true
+  # First match wins; an unmatched user falls back to read-only with no features.
+  #
+  # IMPORTANT: bindings match the MAPPED identity - i.e. groups AFTER any
+  # strip/prefix above and the username AFTER usernamePrefix. If you set
+  # usernamePrefix: "oidc:" or a group `prefix`, write the prefixed form here
+  # (e.g. groups: [oidc:platform-admins]), the same names your cluster RBAC
+  # binds against.
+  bindings:
+    # - { groups: [platform-admins], role: admin }
+    # - { groups: [team-payments], role: developer, namespaces: [payments, "payments-*"] }
+    - { always: true, role: viewer }
+
+# Origins permitted to call /rpc and open the WebSocket. Empty = only an Origin
+# matching the Host we were reached on (blocks cross-site WS hijacking).
+allowedOrigins: []
+
+limits:
+  maxWatches: 40
+  maxLogStreams: 30
+  maxExecSessions: 5

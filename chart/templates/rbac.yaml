@@ -1,0 +1,92 @@
+{{- if .Values.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "panope.serviceAccountName" . }}
+  labels: {{- include "panope.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- if .Values.rbac.create }}
+{{- if .Values.rbac.impersonate.enabled }}
+{{- $imp := .Values.rbac.impersonate }}
+{{- if and (not $imp.users) (not $imp.groups) (not $imp.allowAnyUser) }}
+{{- fail "rbac.impersonate.enabled requires an allowlist: set rbac.impersonate.users and/or .groups (recommended), or rbac.impersonate.allowAnyUser=true to accept an unrestricted grant." }}
+{{- end }}
+{{- range concat ($imp.users | default list) ($imp.groups | default list) }}
+{{- if hasPrefix "system:" . }}
+{{- fail (printf "rbac.impersonate allowlist must not contain a reserved subject: %s - impersonating system:masters or a system ServiceAccount is a cluster-admin escalation." .) }}
+{{- end }}
+{{- end }}
+---
+# Impersonation mode: the ServiceAccount gets NO read access to your workloads.
+# It may only ACT AS the logged-in user, so every request is authorised against
+# that person's own RBAC.
+#
+# resourceNames pins exactly which identities may be impersonated. Without it a
+# user who can influence their own OIDC username/groups claim could ask to be
+# impersonated as system:masters (which bypasses RBAC entirely) and become
+# cluster-admin. The server also rejects system:* independently.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "panope.fullname" . }}-impersonator
+  labels: {{- include "panope.labels" . | nindent 4 }}
+rules:
+  {{- if $imp.allowAnyUser }}
+  # UNRESTRICTED - only safe when the IdP fully controls the username claim and
+  # no user can self-assign it. Prefer the allowlists below.
+  - apiGroups: [""]
+    resources: ["users", "groups"]
+    verbs: ["impersonate"]
+  {{- else }}
+  {{- with $imp.users }}
+  - apiGroups: [""]
+    resources: ["users"]
+    verbs: ["impersonate"]
+    resourceNames: {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with $imp.groups }}
+  - apiGroups: [""]
+    resources: ["groups"]
+    verbs: ["impersonate"]
+    resourceNames: {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- end }}
+  # ServiceAccount impersonation is never granted: it is a direct path to
+  # borrowing a privileged SA's permissions.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "panope.fullname" . }}-impersonator
+  labels: {{- include "panope.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "panope.fullname" . }}-impersonator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "panope.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- else }}
+---
+# Direct mode: everyone shares the ServiceAccount's permissions. Bound to the
+# built-in `view` role by default - raise it only with the read-only guard in
+# mind, since any visitor inherits whatever you grant here.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "panope.fullname" . }}-reader
+  labels: {{- include "panope.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.rbac.readOnlyClusterRole }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "panope.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
