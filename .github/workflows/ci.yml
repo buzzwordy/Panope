@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Covers all three targets: main/preload, renderer, and the in-cluster server.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Proves both bundles compile - the desktop app and the server that
+      # serves the same renderer in-cluster.
+      - name: Build renderer + main
+        run: npm run build
+
+      - name: Build server
+        run: npm run build:server
+
+  chart:
+    name: Helm chart lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: helm lint
+        run: helm lint chart
+
+      # The chart has `fail` guards (e.g. impersonation with no allowlist);
+      # render it both ways so a broken template is caught here, not at deploy.
+      - name: helm template (defaults)
+        run: helm template panope chart > /dev/null
+
+      - name: helm template (oidc + impersonation allowlist)
+        run: |
+          set -euo pipefail
+          oidc() {
+            helm template panope chart \
+              --set auth.mode=oidc \
+              --set auth.oidc.issuer=https://idp.example.com/realms/panope \
+              --set auth.oidc.clientId=panope \
+              --set auth.oidc.clientSecret=dummy \
+              --set auth.sessionSecret=0123456789abcdef0123456789abcdef \
+              --set rbac.impersonate.enabled=true "$@"
+          }
+
+          # Renders, and actually produces the impersonation ClusterRole.
+          oidc --set rbac.impersonate.groups='{platform-admins,developers}' \
+            | grep -q 'impersonate' \
+            || { echo "::error::impersonation ClusterRole was not rendered"; exit 1; }
+
+          # The guards must FIRE. A chart that silently stops refusing these is
+          # a cluster-admin escalation, so assert the failure, do not assume it.
+          if oidc >/dev/null 2>&1; then
+            echo "::error::chart rendered impersonation with no allowlist - the fail guard is broken"; exit 1
+          fi
+          if oidc --set rbac.impersonate.groups='{system:masters}' >/dev/null 2>&1; then
+            echo "::error::chart accepted a system: subject in the impersonation allowlist"; exit 1
+          fi
+
+          # Unauthenticated read-write behind an Ingress must also be refused.
+          if helm template panope chart --set ingress.enabled=true \
+               --set panope.readOnly=false >/dev/null 2>&1; then
+            echo "::error::chart rendered an unauthenticated read-write Ingress"; exit 1
+          fi
+
+  image:
+    name: Container image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Build only - publishing happens in the release workflow.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: panope:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A server that starts without auth would be a security regression, so
+      # assert the fail-closed boot rather than just that the image runs.
+      - name: Refuses to start without auth configured
+        run: |
+          set +e
+          output=$(docker run --rm -e PORT=8899 panope:ci 2>&1)
+          status=$?
+          echo "$output"
+          if [ $status -eq 0 ]; then
+            echo "::error::server started without auth configured"
+            exit 1
+          fi
+          echo "$output" | grep -q "REFUSING TO START" || {
+            echo "::error::expected a fail-closed message"
+            exit 1
+          }

@@ -1,0 +1,383 @@
+:root {
+  /* =========================================================
+     PANOPE - DARK THEME (default)
+     ========================================================= */
+
+  /* ---- Surface / background layers ---- */
+  --color-bg-app:            #0d0e11;
+  --color-bg-sidebar:        #111318;
+  --color-bg-panel:          #16181d;
+  --color-bg-elevated:       #1a1d23;
+  --color-bg-input:          #16181d;
+  --color-bg-input-hover:    #1c1f26;
+  --color-bg-topbar:         #111318;
+
+  /* ---- Borders / dividers ---- */
+  --color-border:            #262a31;
+  --color-border-subtle:     #1e2228;
+  --color-border-strong:     #333944;
+
+  /* ---- Text ---- */
+  --color-text-primary:      #e6e8eb;
+  --color-text-secondary:    #b3b9c2;
+  --color-text-muted:        #8b929c;
+  --color-text-faint:        #5f6670;
+  --color-text-on-accent:    #ffffff;
+
+  /* ---- Link / brand ---- */
+  --color-link:              #5b9dd6;
+  --color-link-hover:        #7db4e4;
+  --color-brand:             #22c55e;
+  --color-brand-dim:         #16a34a;
+
+  /* ---- Primary action (blue button) ---- */
+  --color-accent:            #2f6fed;
+  --color-accent-hover:      #3d7bf5;
+  --color-accent-active:     #2560d6;
+  --color-accent-ring:       rgba(47, 111, 237, 0.45);
+
+  /* ---- Selected / hover states ---- */
+  --color-row-hover:         #1c1f26;
+  --color-row-selected:      #1e2530;
+  --color-nav-hover:         #191c22;
+  --color-nav-selected:      #1c2028;
+  --color-nav-accent:        #22c55e;
+  --color-nav-accent-tint:   rgba(34, 197, 94, 0.08);
+
+  /* ---- Status pill palettes ---- */
+  --color-status-running-bg:   #14351f;
+  --color-status-running-text: #4ade80;
+  --color-status-running-dot:  #22c55e;
+  --color-status-pending-bg:   #3a2c0d;
+  --color-status-pending-text: #fbbf24;
+  --color-status-pending-dot:  #f59e0b;
+  --color-status-failed-bg:    #3a1618;
+  --color-status-failed-text:  #f87171;
+  --color-status-failed-dot:   #ef4444;
+  --color-status-succeeded-bg:   #123043;
+  --color-status-succeeded-text: #38bdf8;
+  --color-status-succeeded-dot:  #0ea5e9;
+  --color-status-unknown-bg:   #23272e;
+  --color-status-unknown-text: #9aa2ad;
+  --color-status-unknown-dot:  #6b7280;
+
+  /* ---- Usage bar (CPU / memory) ---- */
+  --color-usage-track:   #23272e;
+  --color-usage-ok:      #22c55e;
+  --color-usage-warn:    #f59e0b;
+  --color-usage-danger:  #ef4444;
+
+  /* ---- Semantic feedback ---- */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger:  #ef4444;
+  --color-info:    #5b9dd6;
+
+  /* ---- Icon colors ---- */
+  --color-icon:            #8b929c;
+  --color-icon-hover:      #e6e8eb;
+  --color-icon-brand:      #22c55e;
+  --color-icon-breadcrumb: #2dd4bf;
+  --color-icon-star:       #8b929c;
+  --color-icon-star-active:#fbbf24;
+  --color-icon-danger:     #ef4444;
+
+  /* ---- Sizing / spacing ---- */
+  --sidebar-width:      230px;
+  --topbar-height:      44px;
+  --pageheader-height:  56px;
+  --toolbar-height:     48px;
+  --table-row-height:   36px;
+  --table-header-height:34px;
+  --footer-height:      32px;
+
+  --space-0:  0;
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  10px;
+  --space-6:  12px;
+  --space-7:  16px;
+  --space-8:  20px;
+  --space-9:  24px;
+  --space-10: 32px;
+  --space-11: 40px;
+  --space-12: 48px;
+
+  --pad-cell-x:    12px;
+  --pad-row-x:     14px;
+  --pad-sidebar-x: 12px;
+  --pad-panel-x:   16px;
+
+  /* ---- Radius ---- */
+  --radius-xs:   3px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  /* ---- Typography ---- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Roboto Mono", Menlo, Consolas, monospace;
+
+  --font-size-xs:   10px;
+  --font-size-sm:   11px;
+  --font-size-md:   12px;
+  --font-size-base: 13px;
+  --font-size-lg:   15px;
+  --font-size-xl:   19px;
+
+  --line-height-tight:  1.2;
+  --line-height-normal: 1.45;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  --letter-spacing-caps: 0.06em;
+
+  /* ---- Effects ---- */
+  --shadow-dropdown: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-popover:  0 2px 10px rgba(0, 0, 0, 0.35);
+  --focus-ring:      0 0 0 2px var(--color-accent-ring);
+
+  --usage-bar-height: 3px;
+  --usage-bar-radius: 2px;
+
+  --transition-fast: 90ms ease;
+  --transition-base: 140ms ease;
+}
+
+/* =========================================================
+   LIGHT THEME OVERRIDE
+   ========================================================= */
+:root[data-theme="light"] {
+  --color-bg-app:            #f5f6f8;
+  --color-bg-sidebar:        #eef0f3;
+  --color-bg-panel:          #ffffff;
+  --color-bg-elevated:       #ffffff;
+  --color-bg-input:          #ffffff;
+  --color-bg-input-hover:    #f2f4f7;
+  --color-bg-topbar:         #eef0f3;
+
+  --color-border:            #d9dde3;
+  --color-border-subtle:     #e7eaee;
+  --color-border-strong:     #c2c8d0;
+
+  --color-text-primary:      #1a1d23;
+  --color-text-secondary:    #3f454e;
+  --color-text-muted:        #6b7280;
+  --color-text-faint:        #9aa2ad;
+  --color-text-on-accent:    #ffffff;
+
+  --color-link:              #2563c9;
+  --color-link-hover:        #1d4fb0;
+  --color-brand:             #16a34a;
+  --color-brand-dim:         #15803d;
+
+  --color-accent:            #2f6fed;
+  --color-accent-hover:      #2560d6;
+  --color-accent-active:     #1f52bd;
+  --color-accent-ring:       rgba(47, 111, 237, 0.30);
+
+  --color-row-hover:         #f2f4f7;
+  --color-row-selected:      #e8f0fe;
+  --color-nav-hover:         #e4e7ec;
+  --color-nav-selected:      #e3ece6;
+  --color-nav-accent:        #16a34a;
+  --color-nav-accent-tint:   rgba(22, 163, 74, 0.10);
+
+  --color-status-running-bg:   #dcfce7;
+  --color-status-running-text: #15803d;
+  --color-status-running-dot:  #16a34a;
+  --color-status-pending-bg:   #fef3c7;
+  --color-status-pending-text: #b45309;
+  --color-status-pending-dot:  #f59e0b;
+  --color-status-failed-bg:    #fee2e2;
+  --color-status-failed-text:  #b91c1c;
+  --color-status-failed-dot:   #ef4444;
+  --color-status-succeeded-bg:   #dbeafe;
+  --color-status-succeeded-text: #1d4ed8;
+  --color-status-succeeded-dot:  #2563eb;
+  --color-status-unknown-bg:   #eceef1;
+  --color-status-unknown-text: #5f6670;
+  --color-status-unknown-dot:  #9ca3af;
+
+  --color-usage-track:   #e7eaee;
+  --color-usage-ok:      #16a34a;
+  --color-usage-warn:    #d97706;
+  --color-usage-danger:  #dc2626;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger:  #dc2626;
+  --color-info:    #2563c9;
+
+  --color-icon:            #6b7280;
+  --color-icon-hover:      #1a1d23;
+  --color-icon-brand:      #16a34a;
+  --color-icon-breadcrumb: #0d9488;
+  --color-icon-star:       #9aa2ad;
+  --color-icon-star-active:#f59e0b;
+  --color-icon-danger:     #dc2626;
+
+  --shadow-dropdown: 0 6px 20px rgba(17, 24, 39, 0.14);
+  --shadow-popover:  0 2px 10px rgba(17, 24, 39, 0.10);
+}
+
+/* =========================================================
+   GITHUB DARK (Primer palette, like the GitHub VS Code theme)
+   ========================================================= */
+:root[data-theme="github-dark"] {
+  --color-bg-app:            #0d1117;
+  --color-bg-sidebar:        #010409;
+  --color-bg-panel:          #0d1117;
+  --color-bg-elevated:       #161b22;
+  --color-bg-input:          #010409;
+  --color-bg-input-hover:    #161b22;
+  --color-bg-topbar:         #010409;
+
+  --color-border:            #30363d;
+  --color-border-subtle:     #21262d;
+  --color-border-strong:     #444c56;
+
+  --color-text-primary:      #e6edf3;
+  --color-text-secondary:    #c9d1d9;
+  --color-text-muted:        #8b949e;
+  --color-text-faint:        #6e7681;
+  --color-text-on-accent:    #ffffff;
+
+  --color-link:              #2f81f7;
+  --color-link-hover:        #58a6ff;
+  --color-brand:             #3fb950;
+  --color-brand-dim:         #238636;
+
+  --color-accent:            #1f6feb;
+  --color-accent-hover:      #2f81f7;
+  --color-accent-active:     #1158c7;
+  --color-accent-ring:       rgba(31, 111, 235, 0.45);
+
+  --color-row-hover:         #161b22;
+  --color-row-selected:      #182740;
+  --color-nav-hover:         #161b22;
+  --color-nav-selected:      #172033;
+  --color-nav-accent:        #3fb950;
+  --color-nav-accent-tint:   rgba(63, 185, 80, 0.10);
+
+  --color-status-running-bg:   #12261e;
+  --color-status-running-text: #3fb950;
+  --color-status-running-dot:  #3fb950;
+  --color-status-pending-bg:   #272013;
+  --color-status-pending-text: #d29922;
+  --color-status-pending-dot:  #d29922;
+  --color-status-failed-bg:    #2d1517;
+  --color-status-failed-text:  #f85149;
+  --color-status-failed-dot:   #f85149;
+  --color-status-succeeded-bg:   #0d2847;
+  --color-status-succeeded-text: #58a6ff;
+  --color-status-succeeded-dot:  #1f6feb;
+  --color-status-unknown-bg:   #21262d;
+  --color-status-unknown-text: #8b949e;
+  --color-status-unknown-dot:  #6e7681;
+
+  --color-usage-track:   #21262d;
+  --color-usage-ok:      #3fb950;
+  --color-usage-warn:    #d29922;
+  --color-usage-danger:  #f85149;
+
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-danger:  #f85149;
+  --color-info:    #58a6ff;
+
+  --color-icon:            #8b949e;
+  --color-icon-hover:      #e6edf3;
+  --color-icon-brand:      #3fb950;
+  --color-icon-breadcrumb: #58a6ff;
+  --color-icon-star:       #8b949e;
+  --color-icon-star-active:#d29922;
+  --color-icon-danger:     #f85149;
+
+  --shadow-dropdown: 0 8px 24px rgba(1, 4, 9, 0.5);
+  --shadow-popover:  0 2px 10px rgba(1, 4, 9, 0.4);
+}
+
+/* =========================================================
+   GITHUB LIGHT (Primer palette)
+   ========================================================= */
+:root[data-theme="github-light"] {
+  --color-bg-app:            #ffffff;
+  --color-bg-sidebar:        #f6f8fa;
+  --color-bg-panel:          #ffffff;
+  --color-bg-elevated:       #ffffff;
+  --color-bg-input:          #ffffff;
+  --color-bg-input-hover:    #f3f4f6;
+  --color-bg-topbar:         #f6f8fa;
+
+  --color-border:            #d0d7de;
+  --color-border-subtle:     #e6eaef;
+  --color-border-strong:     #afb8c1;
+
+  --color-text-primary:      #1f2328;
+  --color-text-secondary:    #424a53;
+  --color-text-muted:        #656d76;
+  --color-text-faint:        #8c959f;
+  --color-text-on-accent:    #ffffff;
+
+  --color-link:              #0969da;
+  --color-link-hover:        #0757ba;
+  --color-brand:             #1a7f37;
+  --color-brand-dim:         #116329;
+
+  --color-accent:            #0969da;
+  --color-accent-hover:      #0757ba;
+  --color-accent-active:     #0550ae;
+  --color-accent-ring:       rgba(9, 105, 218, 0.30);
+
+  --color-row-hover:         #f6f8fa;
+  --color-row-selected:      #ddf4ff;
+  --color-nav-hover:         #eaeef2;
+  --color-nav-selected:      #dafbe1;
+  --color-nav-accent:        #1a7f37;
+  --color-nav-accent-tint:   rgba(26, 127, 55, 0.10);
+
+  --color-status-running-bg:   #dafbe1;
+  --color-status-running-text: #1a7f37;
+  --color-status-running-dot:  #1f883d;
+  --color-status-pending-bg:   #fff8c5;
+  --color-status-pending-text: #9a6700;
+  --color-status-pending-dot:  #bf8700;
+  --color-status-failed-bg:    #ffebe9;
+  --color-status-failed-text:  #cf222e;
+  --color-status-failed-dot:   #cf222e;
+  --color-status-succeeded-bg:   #ddf4ff;
+  --color-status-succeeded-text: #0969da;
+  --color-status-succeeded-dot:  #0969da;
+  --color-status-unknown-bg:   #eaeef2;
+  --color-status-unknown-text: #656d76;
+  --color-status-unknown-dot:  #8c959f;
+
+  --color-usage-track:   #eaeef2;
+  --color-usage-ok:      #1a7f37;
+  --color-usage-warn:    #bf8700;
+  --color-usage-danger:  #cf222e;
+
+  --color-success: #1a7f37;
+  --color-warning: #9a6700;
+  --color-danger:  #cf222e;
+  --color-info:    #0969da;
+
+  --color-icon:            #656d76;
+  --color-icon-hover:      #1f2328;
+  --color-icon-brand:      #1a7f37;
+  --color-icon-breadcrumb: #0969da;
+  --color-icon-star:       #8c959f;
+  --color-icon-star-active:#bf8700;
+  --color-icon-danger:     #cf222e;
+
+  --shadow-dropdown: 0 6px 20px rgba(31, 35, 40, 0.12);
+  --shadow-popover:  0 1px 6px rgba(31, 35, 40, 0.10);
+}
