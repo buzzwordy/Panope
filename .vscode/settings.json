@@ -1,0 +1,35 @@
+{
+  // Task auto-detection spawns a ripgrep scan for **/package.json across every
+  // workspace folder on each reload, with --follow --no-ignore --hidden. Any
+  // symlink to / inside the tree (the wine prefix's dosdevices/z: is one) makes
+  // that scan walk the whole disk. The prefix now lives in
+  // ~/.cache/panope-dockerhome; this keeps the scan off regardless.
+  "npm.autoDetect": "off",
+  "task.autoDetect": "off",
+  "typescript.tsc.autoDetect": "off",
+
+  // Keep the file watcher, search index and explorer out of build output and
+  // caches - none of it is source.
+  "files.watcherExclude": {
+    "**/.dockerhome/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/out/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true
+  },
+  "search.exclude": {
+    "**/.dockerhome": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/out": true,
+    "**/package-lock.json": true
+  },
+  "files.exclude": {
+    "**/.dockerhome": true,
+    "**/out": true
+  },
+
+  // The repo ships its own TypeScript; use it rather than the bundled version.
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

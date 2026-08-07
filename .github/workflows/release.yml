@@ -1,0 +1,260 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build the packages but do not publish a release
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # create the release and upload assets
+  packages: write   # push the image to GHCR
+
+jobs:
+  # ci.yml only runs on pushes to main, so a tag push has no gate of its own.
+  # The release is published, not draft, which makes a bad tag public and
+  # irreversible - so check the cheap things before spending 10 minutes packaging.
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # Four independent version sources; a mismatch ships packages whose
+      # filenames disagree with the release, or a chart deploying the old image.
+      - name: Versions agree with the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./package.json').version")
+          app=$(grep -E '^appVersion:' chart/Chart.yaml | awk '{print $2}' | tr -d '"')
+          echo "tag=$tag package.json=$pkg chart appVersion=$app"
+          [ "$tag" = "$pkg" ] || { echo "::error::package.json is $pkg, tag is $tag"; exit 1; }
+          [ "$tag" = "$app" ] || { echo "::error::chart appVersion is $app, tag is $tag"; exit 1; }
+
+      # helm push overwrites an existing OCI tag, so a chart version that is
+      # already in the registry would silently replace published content.
+      - name: Chart version is not already published
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          v=$(grep -E '^version:' chart/Chart.yaml | awk '{print $2}')
+          t=$(curl -sf "https://ghcr.io/token?scope=repository:${{ github.repository_owner }}/charts/panope:pull&service=ghcr.io" \
+              | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).token")
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $t" \
+                 -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+                 "https://ghcr.io/v2/${{ github.repository_owner }}/charts/panope/manifests/$v")
+          echo "chart $v -> HTTP $code"
+          if [ "$code" = "200" ]; then
+            echo "::error::chart $v is already published; bump chart/Chart.yaml version"
+            exit 1
+          fi
+
+  # macOS packaging: TBD.
+  packages:
+    needs: verify
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux (deb, rpm, AppImage)
+            build: npx electron-builder --linux --publish never
+          - os: windows-latest
+            name: Windows (NSIS, zip)
+            build: npx electron-builder --win --publish never
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # fpm shells out to rpmbuild for the rpm target; it is not on the runner.
+      - name: Install rpm tooling
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm
+
+      - run: npm ci
+
+      - name: Build bundles
+        run: npm run build
+
+      # Each OS packages natively, so no wine/mono cross-building is involved.
+      - name: Package
+        run: ${{ matrix.build }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: panope-${{ runner.os }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
+
+  image:
+    name: Container image
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      # The exact reference that was pushed, so the release notes cannot
+      # advertise a tag that does not exist. metadata-action's {{version}}
+      # strips the leading "v", so github.ref_name (v2.6.0) is NOT the tag.
+      ref: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ghcr.io/<owner>/panope:<tag> plus :latest for real tag pushes.
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/panope
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        env:
+          # Don't upload the buildx build-record artifact; nothing consumes it
+          # and it is not a plain zip, so artifact collectors trip over it.
+          DOCKER_BUILD_RECORD_UPLOAD: false
+          DOCKER_BUILD_SUMMARY: false
+        with:
+          context: .
+          # A manual dry run builds without publishing anything.
+          push: ${{ startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  chart:
+    name: Helm chart
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pkg.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package
+        id: pkg
+        run: |
+          set -euo pipefail
+          # The chart carries its OWN version, independent of the app version
+          # in appVersion, so read it rather than deriving it from the tag.
+          v=$(grep -E '^version:' chart/Chart.yaml | awk '{print $2}')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          helm package chart -d dist-chart
+          ls -l dist-chart
+
+      - name: Push to GHCR
+        if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ghcr.io -u '${{ github.actor }}' --password-stdin
+          helm push "dist-chart/panope-${{ steps.pkg.outputs.version }}.tgz" \
+            "oci://ghcr.io/${{ github.repository_owner }}/charts"
+
+      - name: Attach to the release
+        uses: actions/upload-artifact@v4
+        with:
+          name: panope-chart
+          retention-days: 14
+          if-no-files-found: error
+          path: dist-chart/*.tgz
+
+  release:
+    name: Publish GitHub release
+    needs: [packages, image, chart]
+    # The desktop packages do not depend on the registry, so a GHCR failure
+    # (commonly a permissions problem rather than a bad build) must not throw
+    # away two successful package builds. Proceed whenever the packages are
+    # good and report the image separately.
+    #
+    # !cancelled() rather than always(): always() would publish a release even
+    # after someone cancels the run mid-flight.
+    if: >-
+      !cancelled() && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+      && needs.packages.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only the package artifacts. Without a pattern this also pulls the
+      # `<owner>~<repo>~<id>.dockerbuild` build record that
+      # docker/build-push-action uploads automatically, which is a buildx
+      # format download-artifact cannot extract - it fails the whole job after
+      # five retries even though every package downloaded cleanly.
+      - name: Collect artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: panope-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: List what will be published
+        run: ls -lh artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Published, not draft: a draft release is invisible to anyone who is
+          # not a collaborator, so /releases and /releases/latest 404 for the
+          # public - which silently breaks every download link. Pushing a v*
+          # tag is already the deliberate act; requiring a second manual click
+          # just means the artifacts sit where nobody can reach them.
+          draft: false
+          generate_release_notes: true
+          files: artifacts/*
+          body: |
+            Linux (`deb`, `rpm`, `AppImage`) and Windows (installer + zip).
+            macOS packages: TBD.
+
+            Packages are **unsigned**, so Windows SmartScreen will warn on
+            first launch.
+
+            ${{ needs.image.result == 'success'
+                && format('Container image: `ghcr.io/{0}/panope:{1}`', github.repository_owner, needs.image.outputs.ref)
+                || '> The container image was **not** published for this tag - the image job did not succeed.' }}
+
+            ${{ needs.chart.result == 'success'
+                && format('Helm chart: `oci://ghcr.io/{0}/charts/panope` (version {1})', github.repository_owner, needs.chart.outputs.version)
+                || '> The Helm chart was **not** published for this tag - the chart job did not succeed.' }}
