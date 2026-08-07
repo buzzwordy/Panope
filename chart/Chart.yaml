@@ -1,0 +1,7 @@
+apiVersion: v2
+name: panope
+description: Panope - a Kubernetes client, deployed into the cluster
+type: application
+version: 0.8.0
+appVersion: "3.2.0"
+keywords: [kubernetes, dashboard, ui]

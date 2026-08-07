@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "panope.fullname" . }}
+  labels: {{- include "panope.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{- include "panope.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "panope.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "panope.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: panope
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: PANOPE_READ_ONLY
+              value: {{ .Values.panope.readOnly | quote }}
+            - name: PANOPE_ALLOW_PRIVILEGED
+              value: {{ .Values.panope.allowPrivileged | quote }}
+            - name: PANOPE_AUTH
+              value: {{ .Values.auth.mode | quote }}
+            {{- if ne .Values.auth.mode "oidc" }}
+            # No authentication at all - must be acknowledged explicitly.
+            - name: PANOPE_INSECURE_NO_AUTH
+              value: "true"
+            {{- end }}
+            {{- if .Values.authz.enabled }}
+            - name: PANOPE_AUTHZ
+              value: {{ pick .Values.authz "identity" "roles" "bindings" | toJson | quote }}
+            {{- end }}
+            {{- with .Values.allowedOrigins }}
+            - name: PANOPE_ALLOWED_ORIGINS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            - name: PANOPE_MAX_WATCHES
+              value: {{ .Values.limits.maxWatches | quote }}
+            - name: PANOPE_MAX_LOG_STREAMS
+              value: {{ .Values.limits.maxLogStreams | quote }}
+            - name: PANOPE_MAX_EXEC_SESSIONS
+              value: {{ .Values.limits.maxExecSessions | quote }}
+            {{- if not (eq .Values.auth.mode "oidc") }}
+            {{- with .Values.rbac.impersonate.defaultUser }}
+            - name: PANOPE_ANONYMOUS_USER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if eq .Values.auth.mode "oidc" }}
+            - name: OIDC_ISSUER
+              value: {{ .Values.auth.oidc.issuer | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.auth.oidc.clientId | quote }}
+            - name: OIDC_REDIRECT_URI
+              value: {{ .Values.auth.oidc.redirectUri | quote }}
+            - name: OIDC_USERNAME_CLAIM
+              value: {{ .Values.auth.oidc.usernameClaim | quote }}
+            - name: OIDC_GROUPS_CLAIM
+              value: {{ .Values.auth.oidc.groupsClaim | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.oidc.existingSecret | default (printf "%s-auth" (include "panope.fullname" .)) }}
+                  key: clientSecret
+            - name: PANOPE_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSessionSecret | default (printf "%s-auth" (include "panope.fullname" .)) }}
+                  key: sessionSecret
+            {{- end }}
+            {{- if .Values.panope.alerts.enabled }}
+            - name: PANOPE_ALERTS
+              value: "true"
+            - name: PANOPE_ALERT_INTERVAL_MS
+              value: {{ mul .Values.panope.alerts.intervalSeconds 1000 | quote }}
+            - name: PANOPE_ALERT_COOLDOWN_MS
+              value: {{ mul .Values.panope.alerts.cooldownMinutes 60000 | quote }}
+            - name: PANOPE_ALERT_CPU_PCT
+              value: {{ .Values.panope.alerts.thresholds.cpuPercent | quote }}
+            - name: PANOPE_ALERT_MEM_PCT
+              value: {{ .Values.panope.alerts.thresholds.memoryPercent | quote }}
+            - name: PANOPE_ALERT_PODSLOT_PCT
+              value: {{ .Values.panope.alerts.thresholds.podSlotPercent | quote }}
+            - name: PANOPE_ALERT_RESTARTS
+              value: {{ .Values.panope.alerts.thresholds.restarts | quote }}
+            {{- with .Values.panope.alerts.alertmanagerUrls }}
+            - name: PANOPE_ALERTMANAGER_URLS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.panope.alerts.slackWebhookUrl }}
+            - name: PANOPE_ALERT_SLACK_WEBHOOK
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.panope.alerts.webhookUrl }}
+            - name: PANOPE_ALERT_WEBHOOK
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # readOnlyRootFilesystem is on, so give helm somewhere to scribble
+            - name: tmp
+              mountPath: /tmp
+            - name: helm-home
+              mountPath: /home/node/.cache/helm
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: helm-home
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
